@@ -1,9 +1,12 @@
+clear all;
 img = imread('ЖўЮЌТы1.jpg');          %read the img
 imgbw = im2bw(img,graythresh(img));  %binaryzation by auto threshhold
-imgfiltered = filter2(fspecial('average',5),imgbw); %filtered using 5*5
+imgfiltered = filter2(fspecial('average',3),imgbw); %filtered using 3*3
 imgbw2 = im2bw(imgfiltered,graythresh(imgfiltered));
-pixelsize = 0;
-npixelsize = 0;
+xpixelsize = 0;
+nxpixelsize = 0;
+ypixelsize = 0;
+nypixelsize = 0;
 %processing by row
 [nrow,ncol] = size(imgbw);
 edgemat = [];
@@ -37,9 +40,9 @@ for i = 1:nrow
                             edgemat = [edgemat;i,maybeedge((k-1),2)];
                             edgemat = [edgemat;i,maybeedge(k,2)];
                             matcenterx = [matcenterx;i,round((maybeedge((k-1),2)+maybeedge(k,2))/2)];
-                            npixelsize = npixelsize + 1;
-                            pixelsize = pixelsize*(npixelsize-1)+round(pieces(k)/3);
-                            pixelsize = round(pixelsize/npixelsize);
+                            nxpixelsize = nxpixelsize + 1;
+                            xpixelsize = xpixelsize*(nxpixelsize-1)+round(pieces(k)/3);
+                            xpixelsize = round(xpixelsize/nxpixelsize);
                         end
                     end
                 end
@@ -89,9 +92,9 @@ for j = 1:ncol
                             edgemat = [edgemat;maybeedge((k-1),1),j];
                             edgemat = [edgemat;maybeedge(k,1),j];
                             matcentery = [matcentery;round((maybeedge((k-1),1)+maybeedge(k,1))/2),j];
-                            npixelsize = npixelsize + 1;
-                            pixelsize = pixelsize*(npixelsize-1)+round(pieces(k)/3);
-                            pixelsize = round(pixelsize/npixelsize);
+                            nypixelsize = nypixelsize + 1;
+                            ypixelsize = ypixelsize*(nypixelsize-1)+round(pieces(k)/3);
+                            ypixelsize = round(ypixelsize/nypixelsize);
                         end
                     end
                 end
@@ -109,6 +112,8 @@ centerimy = ~zeros(size(imgbw,1),size(imgbw,2));
 for i = 1:size(matcentery,1)
     centerimy(matcentery(i,1),matcentery(i,2)) = 0;
 end
+
+pixelsize = 0.5*xpixelsize + 0.5*ypixelsize;
 %finish rol
 
 edgeim = edgeimx&edgeimy;
@@ -121,26 +126,77 @@ if(numofcontrol~=3) %succeed to get the pos control sign
     disp('failed to get the 3 control points');
     return;
 end
-[centerlistx,centerlisty]=find(centerim~=1); %find the 3 centers
+[centerlisty,centerlistx]=find(centerim~=1); %find the 3 centers
 centerlist=[centerlistx,centerlisty];
 
 %cut
 xdistance=min([max(centerlistx)-median(centerlistx),median(centerlistx)-min(centerlistx)]);
 ydistance=min([max(centerlisty)-median(centerlisty),median(centerlisty)-min(centerlisty)]);
-left = max([0,round(min(centerlistx)-xdistance-6.364*pixelsize)]);
-right = min([size(imgbw2,2),round(max(centerlistx)+xdistance+6.364*pixelsize)]);
-up = max([0,round(min(centerlisty)-ydistance-6.364*pixelsize)]);
-down = min([size(imgbw2,1),round(max(centerlisty)+ydistance+6.364*pixelsize)]);
-imgbw3 = imgbw2(left:right,up:down);%up:down,left:right
-centerim3 = centerim(left:right,up:down);
+left = max([1,round(min(centerlistx)-xdistance-6.364*pixelsize)]);
+right = min([size(imgbw2,2),round(max(centerlistx)+xdistance+6.364*xpixelsize)]);
+up = max([1,round(min(centerlisty)-ydistance-6.364*pixelsize)]);
+down = min([size(imgbw2,1),round(max(centerlisty)+ydistance+6.364*ypixelsize)]);
+imgbw3 = imgbw2(up:down,left:right);%up:down,left:right
+centerim3 = centerim(up:down,left:right);
 [centerlistx3,centerlisty3]=find(centerim3~=1); %find the 3 centers
 centerlist3=[centerlistx3,centerlisty3];
-%finish cutting(get centerlist3,imgbw3,)
+%finish cutting(get centerlist3,centerim3,imgbw3,)
+clearvars -except centerlist3 centerim3 imgbw3 pixelsize xpixelsize ypixelsize imgbw2;
 
-finalimg = imgbw3;
+%rotate
+anglelist3=getangles(centerlist3);
+mm = find(anglelist3==max(anglelist3));%find the row No of point 0
+xx = find(centerlist3(:,2)==centerlist3(mm,2));
+if(size(xx,1)==1)
+    if(centerlist3(mm,1)==min(centerlist3(:,1))) %case 1
+        m1 = min(centerlist3(:,2));
+        m1 = find(centerlist3(:,2)==m1);%get the row NO of point1
+        b = centerlist3(m1,1)-centerlist3(mm,1);
+        c = centerlist3(m1,2)-centerlist3(mm,2);
+        rotateangle = -atand(c/b);
+        centerim4=~imrotate(~centerim3,rotateangle,'bilinear','loose'); %unit(angle)=deg
+        imgbw4 = ~imrotate(~imgbw3,rotateangle,'bilinear','loose');
+        
+    elseif(centerlist3(mm,1)==max(centerlist(:,1))) %case 3
+        m1 = min(centerlist3(:,2));
+        m1 = find(centerlist3(:,2)==m1);%get the row NO of point1
+        b = centerlist3(m1,1)-centerlist3(mm,1);
+        c = centerlist3(m1,2)-centerlist3(mm,2);
+        rotateangle = -atand(c/b)-90;
+        centerim4=~imrotate(~centerim3,rotateangle,'bilinear','loose'); %unit(angle)=deg
+        imgbw4 = ~imrotate(~imgbw3,rotateangle,'bilinear','loose');
+    else
+        if(centerlist3(mm,2)~=max(centerlist3(:,2)))%case 2
+            m1 = max(centerlist3(:,1));
+            m1 = find(centerlist3(:,1)==m1);%get the row NO of point1
+            b = centerlist3(m1,1)-centerlist3(mm,1);
+            c = centerlist3(m1,2)-centerlist3(mm,2);
+            rotateangle = -atand(c/b);
+            centerim4=~imrotate(~centerim3,rotateangle,'bilinear','loose'); %unit(angle)=deg
+            imgbw4 = ~imrotate(~imgbw3,rotateangle,'bilinear','loose');
+        else %case 4
+            m1 = min(centerlist3(:,1));
+            m1 = find(centerlist3(:,1)==m1);%get the row NO of point1
+            b = centerlist3(m1,1)-centerlist3(mm,1);
+            c = centerlist3(m1,2)-centerlist3(mm,2);
+            rotateangle = 180-atand(c/b);
+            centerim4=~imrotate(~centerim3,rotateangle,'bilinear','loose'); %unit(angle)=deg
+            imgbw4 = ~imrotate(~imgbw3,rotateangle,'bilinear','loose');
+        end
+    end
+elseif(size(xx,1)~=1)%dont need complex rotating
+    disp('to be done...');
+end
+%finish rotating
+
+%read the mat
+
+%finish reading the mat
+
+finalimg = imgbw4;
 imshow(finalimg);
 hold on;
 %imshow(edgebw);
 %plot(edgelisty(:,2),edgelisty(:,1),'r.');
 %plot(edgelistx(:,2),edgelistx(:,1),'b.');
-plot(centerlist3(:,2),centerlist3(:,1),'r.');
+%plot(centerlist4(:,2),centerlist4(:,1),'r.');
