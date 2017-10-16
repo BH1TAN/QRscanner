@@ -125,12 +125,12 @@ end
 centerlist=[centerlistx,centerlisty];
 
 %cut
-xdistance=min([max(centerlistx)-median(centerlistx),median(centerlistx)-min(centerlistx)]);
-ydistance=min([max(centerlisty)-median(centerlisty),median(centerlisty)-min(centerlisty)]);
-left = max([0,round(min(centerlistx)-xdistance-6.364*pixelsize)]);
-right = min([size(imgbw2,2),round(max(centerlistx)+xdistance+6.364*pixelsize)]);
-up = max([0,round(min(centerlisty)-ydistance-6.364*pixelsize)]);
-down = min([size(imgbw2,1),round(max(centerlisty)+ydistance+6.364*pixelsize)]);
+xdistance=[max(centerlistx)-median(centerlistx),median(centerlistx)-min(centerlistx)];
+ydistance=[max(centerlisty)-median(centerlisty),median(centerlisty)-min(centerlisty)];
+left = max([0,round(min(centerlistx)-min(xdistance)6.364*pixelsize)]);
+right = min([size(imgbw2,2),round((max(centerlistx)+median(centerlistx)-min(centerlistx))+6.364*pixelsize)]);
+up = max([0,round((min(centerlisty)-max(centerlisty)+median(centerlisty))-6.364*pixelsize)]);
+down = min([size(imgbw2,1),round((max(centerlisty)+median(centerlisty)-min(centerlisty))+6.364*pixelsize)]);
 imgbw3 = imgbw2(left:right,up:down);%up:down,left:right
 centerim3 = centerim(left:right,up:down);
 [centerlistx3,centerlisty3]=find(centerim3~=1); %find the 3 centers
